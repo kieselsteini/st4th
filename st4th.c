@@ -207,6 +207,9 @@ static void fCOLON() { makeword(parse()); wp->func = fDOCOLON; wp->flags = FL_HI
 static void fSEMICOLON() { compile("EXIT"); w0->flags &= ~FL_HIDDEN; mode = 0; }
 static void fCONSTANT() { makeword(parse()); wp->func = fDOCONSTANT; wp->value = pop(); }
 static void fVARIABLE() { makeword(parse()); wp->func = fDOVARIABLE; }
+static void fCREATE() { makeword(parse()); wp->func = fDOCONSTANT; wp->value = (CELL)mp; }
+static void fIMMEDIATE() { w0->flags |= FL_IMMEDIATE; }
+static void fRECURSE() { w0->flags &= ~FL_HIDDEN; }
 
 static void fDROP() { (void)pop(); }
 static void fDUP() { CELL x = pop(); push(x); push(x); }
@@ -245,6 +248,9 @@ static void fE0() { CELL a = pop(); pushf(a == 0); }
 
 static void fPEEK() { CELL *p = (CELL*)pop(); push(*p); }
 static void fPOKE() { CELL *p = (CELL*)pop(), x = pop(); *p = x; }
+static void fCPEEK() { BYTE *p = (BYTE*)pop(); push(*p); }
+static void fCPOKE() { BYTE *p = (BYTE*)pop(), x = (BYTE)pop(); *p = x; }
+static void fAPOKE() { CELL *p = (CELL*)pop(), x = pop(); *p += x; }
 static void fHERE() { push((CELL)mp); }
 static void fALLOT() { (void)allot(pop()); }
 static void fCOMMA() { comma(pop()); }
@@ -264,6 +270,8 @@ static void fPARSE() { CELL delim = pop(); push((CELL)parseraw(delim)); }
 static void fFIND() { CHAR *s = (CHAR*)pop(); push((CELL)findword(s)); }
 static void fEVALUATE() { evaluate((CHAR*)pop()); }
 static void fEXECUTE() { wp = (WORD*)pop(); wp->func(); }
+static void fLBRACKET() { mode = 0; }
+static void fRBRACKET() { mode = 1; }
 
 static void fDOT() { printf("%ld ", pop()); }
 static void fEMIT() { putchar(pop()); }
@@ -292,6 +300,9 @@ static WORD dictionary[] = {
 	{ ";", fSEMICOLON, 0, FL_IMMEDIATE, NULL },
 	{ "CONSTANT", fCONSTANT, 0, 0, NULL },
 	{ "VARIABLE", fVARIABLE, 0, 0, NULL },
+	{ "CREATE", fCREATE, 0, 0, NULL },
+	{ "IMMEDIATE", fIMMEDIATE, 0, 0, NULL },
+	{ "RECURSE", fRECURSE, 0, 0, NULL },
 	{ "DROP", fDROP, 0, 0, NULL },
 	{ "DUP", fDUP, 0, 0, NULL },
 	{ "?DUP", f_DUP, 0, 0, NULL },
@@ -324,6 +335,9 @@ static WORD dictionary[] = {
 	{ "0=", fE0, 0, 0, NULL },
 	{ "@", fPEEK, 0, 0, NULL },
 	{ "!", fPOKE, 0, 0, NULL },
+	{ "C@", fCPEEK, 0, 0, NULL },
+	{ "C!", fCPOKE, 0, 0, NULL },
+	{ "+!", fAPOKE, 0, 0, NULL },
 	{ "HERE", fHERE, 0, 0, NULL },
 	{ "ALLOT", fALLOT, 0, 0, NULL },
 	{ ",", fCOMMA, 0, 0, NULL },
@@ -341,6 +355,8 @@ static WORD dictionary[] = {
 	{ "FIND", fFIND, 0, 0, NULL },
 	{ "EVALUATE", fEVALUATE, 0, 0, NULL },
 	{ "EXECUTE", fEXECUTE, 0, 0, NULL },
+	{ "[", fLBRACKET, 0, FL_IMMEDIATE, NULL },
+	{ "]", fRBRACKET, 0, FL_IMMEDIATE, NULL },
 	{ ".", fDOT, 0, 0, NULL },
 	{ "EMIT", fEMIT, 0, 0, NULL },
 	{ "SPACE", fSPACE, 0, 0, NULL },
