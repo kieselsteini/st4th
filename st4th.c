@@ -208,6 +208,7 @@ static void fSEMICOLON() { compile("EXIT"); w0->flags &= ~FL_HIDDEN; mode = 0; }
 static void fCONSTANT() { makeword(parse()); wp->func = fDOCONSTANT; wp->value = pop(); }
 static void fVARIABLE() { makeword(parse()); wp->func = fDOVARIABLE; }
 static void fCREATE() { makeword(parse()); wp->func = fDOCONSTANT; wp->value = (CELL)mp; }
+static void fNONAME() { wp = (WORD*)allot(sizeof(WORD)); wp->func = fDOCOLON; wp->value = (CELL)mp; mode = 1; push((CELL)wp); }
 static void fIMMEDIATE() { w0->flags |= FL_IMMEDIATE; }
 static void fRECURSE() { w0->flags &= ~FL_HIDDEN; }
 
@@ -230,6 +231,9 @@ static void fMUL() { CELL b = pop(), a = pop(); push(a * b); }
 static void fDIV() { CELL b = pop(), a = pop(); push(a / b); }
 static void fMOD() { CELL b = pop(), a = pop(); push(a % b); }
 static void fNEGATE() { CELL x = pop(); push(-x); }
+static void fABS() { CELL x = pop(); push(abs(x)); }
+static void fMAX() { CELL b = pop(), a = pop(); push(a > b ? a : b); }
+static void fMIN() { CELL b = pop(), a = pop(); push(a < b ? a : b); }
 
 static void fAND() { CELL b = pop(), a = pop(); push(a & b); }
 static void fOR () { CELL b = pop(), a = pop(); push(a | b); }
@@ -256,7 +260,11 @@ static void fALLOT() { (void)allot(pop()); }
 static void fCOMMA() { comma(pop()); }
 static void fCHARS() { CELL x = pop(); push(x * sizeof(CHAR)); }
 static void fCELLS() { CELL x = pop(); push(x * sizeof(CELL)); }
+static void fCHAR_() { CELL x = pop(); push(x + sizeof(CHAR)); }
+static void fCELL_() { CELL x = pop(); push(x + sizeof(CELL)); }
 
+static void fFILL() { CHAR c = (CHAR)pop(); CELL u = pop(); CHAR *addr = (CHAR*)pop(); memset(addr, c, u); }
+static void fERASE() { CELL u = pop(); CHAR *addr = (CHAR*)pop(); memset(addr, 0, u); }
 static void fCOUNT() { CHAR *s = (CHAR*)pop(); push((CELL)s); push(strlen(s)); }
 static void fTYPE() { printf("%s", (CHAR*)pop()); }
 static void fCSTRING() { CHAR *s = parseraw('"'); compilestring(s); }
@@ -272,10 +280,13 @@ static void fEVALUATE() { evaluate((CHAR*)pop()); }
 static void fEXECUTE() { wp = (WORD*)pop(); wp->func(); }
 static void fLBRACKET() { mode = 0; }
 static void fRBRACKET() { mode = 1; }
+static void fCHAR() { CHAR *c = parse(); push(*c); }
+static void f_CHAR_() { CHAR *c = parse(); compile("DOLITERAL"); comma(*c); }
 
 static void fDOT() { printf("%ld ", pop()); }
 static void fEMIT() { putchar(pop()); }
 static void fSPACE() { putchar(' '); }
+static void fSPACES() { CELL n = pop(), i; for (i = 0; i < n; ++i) putchar(' '); }
 static void fCR() { puts(""); }
 static void fKEY() { push(getchar()); }
 
@@ -301,6 +312,7 @@ static WORD dictionary[] = {
 	{ "CONSTANT", fCONSTANT, 0, 0, NULL },
 	{ "VARIABLE", fVARIABLE, 0, 0, NULL },
 	{ "CREATE", fCREATE, 0, 0, NULL },
+	{ ":NONAME", fNONAME, 0, 0, NULL },
 	{ "IMMEDIATE", fIMMEDIATE, 0, 0, NULL },
 	{ "RECURSE", fRECURSE, 0, 0, NULL },
 	{ "DROP", fDROP, 0, 0, NULL },
@@ -320,6 +332,9 @@ static WORD dictionary[] = {
 	{ "/", fDIV, 0, 0, NULL },
 	{ "MOD", fMOD, 0, 0, NULL },
 	{ "NEGATE", fNEGATE, 0, 0, NULL },
+	{ "ABS", fABS, 0, 0, NULL },
+	{ "MAX", fMAX, 0, 0, NULL },
+	{ "MIN", fMIN, 0, 0, NULL },
 	{ "AND", fAND, 0, 0, NULL },
 	{ "OR", fOR, 0, 0, NULL },
 	{ "XOR", fXOR, 0, 0, NULL },
@@ -343,6 +358,10 @@ static WORD dictionary[] = {
 	{ ",", fCOMMA, 0, 0, NULL },
 	{ "CHARS", fCHARS, 0, 0, NULL },
 	{ "CELLS", fCELLS, 0, 0, NULL },
+	{ "CHAR+", fCHAR_, 0, 0, NULL },
+	{ "CELL+", fCELL_, 0, 0, NULL },
+	{ "FILL", fFILL, 0, 0, NULL },
+	{ "ERASE", fERASE, 0, 0, NULL },
 	{ "COUNT", fCOUNT, 0, 0, NULL },
 	{ "TYPE", fTYPE, 0, 0, NULL },
 	{ ".\"", fPSTRING, 0, FL_IMMEDIATE, NULL },
@@ -357,9 +376,12 @@ static WORD dictionary[] = {
 	{ "EXECUTE", fEXECUTE, 0, 0, NULL },
 	{ "[", fLBRACKET, 0, FL_IMMEDIATE, NULL },
 	{ "]", fRBRACKET, 0, FL_IMMEDIATE, NULL },
+	{ "CHAR", fCHAR, 0, 0, NULL },
+	{ "[CHAR]", f_CHAR_, 0, FL_IMMEDIATE, NULL },
 	{ ".", fDOT, 0, 0, NULL },
 	{ "EMIT", fEMIT, 0, 0, NULL },
 	{ "SPACE", fSPACE, 0, 0, NULL },
+	{ "SPACES", fSPACES, 0, 0, NULL },
 	{ "CR", fCR, 0, 0, NULL },
 	{ "KEY", fKEY, 0, 0, NULL },
 	{ "WORDS", fWORDS, 0, 0, NULL },
